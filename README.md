@@ -1,4 +1,4 @@
-# Pickpocket Poker
+# Pickpocket Poker - credit to saichaudhry
 
 Poker crossed with blackjack: build the best poker hand without your cards going over 21, and
 steal your opponents' face-up cards. **Read [SPEC.md](SPEC.md) first.** It has the full rules,

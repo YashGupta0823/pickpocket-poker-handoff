@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Pickpocket Poker</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <h1 class="title">Pickpocket Poker</h1>
+
+  <!-- Setup screen: choose seats. main.js builds the per-seat Human/Bot dropdowns. -->
+  <section id="setup-screen" class="panel">
+    <label>
+      Number of seats
+      <select id="seat-count">
+        <option value="2">2</option>
+        <option value="3">3</option>
+        <option value="4" selected>4</option>
+      </select>
+    </label>
+    <div id="seat-types"></div>
+    <button id="start-button">Deal me in</button>
+  </section>
+
+  <!-- Game screen: canvas table + controls + message log. Hidden until the game starts. -->
+  <section id="game-screen" class="hidden">
+    <canvas id="table-canvas" width="960" height="640"></canvas>
+    <div class="side-panel">
+      <p id="status-message"></p>
+      <div id="controls">
+        <button id="draw-button">Draw</button>
+        <button id="steal-button">Steal</button>
+        <button id="stand-button">Stand</button>
+        <button id="next-round-button" class="hidden">Next round</button>
+      </div>
+      <ul id="message-log"></ul>
+
+      <!-- Quick rules for players. Static text: if you change a rule in gameState.js or
+           SPEC.md, update it here too. -->
+      <details id="rules-panel" open>
+        <summary>How to play</summary>
+        <ul>
+          <li><strong>Goal:</strong> best poker hand wins the pot, but go over <strong>21</strong> and you bust.</li>
+          <li>Card values: 2–10 as shown, J/Q/K = 10, A = 11 or 1.</li>
+          <li>You start with <strong>2 hidden cards</strong>. Everyone antes into the pot.</li>
+          <li>Each turn pick one:
+            <strong>Draw</strong> (face-up card from the deck),
+            <strong>Steal</strong> (take another player's face-up card; they draw a replacement), or
+            <strong>Stand</strong>.</li>
+          <li>Every card you draw is face-up, so it can be stolen from you.</li>
+          <li>Max 5 cards. Straights, flushes and full houses need all 5.</li>
+          <li>After <strong>4 turns</strong>, hands are revealed. Ties split the pot; if everyone busts, the pot carries over.</li>
+          <li>The ante doubles every 3 rounds. Last player with chips wins.</li>
+        </ul>
+      </details>
+    </div>
+  </section>
+
+  <!-- Game-over overlay -->
+  <section id="game-over-screen" class="overlay hidden">
+    <div class="panel">
+      <h2 id="game-over-message"></h2>
+      <button id="restart-button">Play again</button>
+    </div>
+  </section>
+
+  <!-- TODO (P3, SPEC criteria 19–21): add the "Pass to Player N" cover here, styled like
+       #game-over-screen. Show/hide it from main.js before each human turn. -->
+
+  <!-- Plain scripts, not ES modules, so the game works by double-clicking index.html
+       (module scripts are blocked on file://). ORDER MATTERS: later files use globals
+       defined by earlier ones. -->
+  <script src="js/cards.js"></script>
+  <script src="js/pokerRank.js"></script>
+  <script src="js/gameState.js"></script>
+  <script src="js/bots.js"></script>
+  <script src="js/render.js"></script>
+  <script src="js/main.js"></script>
+</body>
+</html>

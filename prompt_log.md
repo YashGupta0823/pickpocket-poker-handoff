@@ -124,3 +124,82 @@ boundaries, and run the tests.
 - **Verification:** Claude ran the engine tests (`node tests/run-tests.js`) and headless-Chrome
   screenshots after each step, plus a scripted full game through the UI functions. See the
   README for exactly what was and wasn't verified.
+
+
+
+PHASE 2 PROMPT LOG:
+Claude Code used in VS Code so dont have verbatim AI output
+
+1) Before changing any code, read SPEC.md and README.md, then examine the files. Explain how the game works, which features are already implemented, and which acceptance criteria are incomplete.
+
+Also identify the main functions responsible for game logic, bot decisions, and rendering. Don't modify anything yet.
+
+- Reviewed the game specification and existing implementation.
+- Identified the main responsibilities of js/main.js, js/bots.js, and js/render.js.
+- Found that the core gameplay was mostly complete, but bot stealing, multiplayer privacy, and visual animations were missing.
+
+2) Try running the game locally so I can see what the original developer built. Open the game in my browser .
+Run the existing test suite and check whether the game's current behavior matches what is described in the README. Let me know if anything is broken or documented incorrectly.
+
+
+- Opened the game locally through index.html.
+- Ran the original 32 automated tests successfully.
+- Confirmed that the basic gameplay, drawing, standing, human stealing, and round progression worked.
+
+3) Based on the spec and current code, suggest which incomplete features we should implement in roughly two hours.
+Prioritize the original author's acceptance criteria, and try to finish complete features rather than partially implementing many things.
+I want to make small changes and separate Git commits so we can see exactly what was added.
+
+
+- Prioritized bot stealing, multiplayer privacy, and stealing animations.
+- Identified existing TODO comments that could guide development.
+- Decided to leave sound effects, card flipping, and visual polish until the main features were complete.
+
+4) Let's start with bot stealing. Currently the bots only draw or stand, which means they aren't using one of the game's main mechanics.
+Bots should only steal a card if it improves their poker hand category without making their total exceed 21. Keep the existing drawing and standing behavior unchanged.
+
+- Implemented bot stealing decisions in js/bots.js.
+- Added logic for evaluating available cards and identifying beneficial steals.
+- Preserved the original bot draw/stand logic and game engine.
+
+5) Now test the bot stealing logic. Add tests for different situations, including when stealing creates a pair, when the bot would exceed 21, when the bot already has five cards, and when several cards are available.
+Run the existing tests as well. Make sure the changes haven't affected the game's original rules or chip calculations.
+
+- Added six tests covering different bot-stealing scenarios.
+- Increased the automated test count from 32 to 38.
+- Verified that the game could still progress through complete rounds.
+
+6) In particular, the five card restriction test should fail specifically when that restriction is removed. Don't allow another condition, such as an already strong hand, to prevent the steal and make the test pass for the wrong reason.
+Only fix the relevant test and avoid changing working game logic.
+
+- Identified a test that was not independently verifying the five-card restriction.
+- Revised the test scenario to check that restriction directly.
+- Reran the test suite and confirmed that all 38 tests passed.
+
+7) Next, implement the Pass to Player feature described in SPEC.md.
+When multiple humans are playing on the same computer, add a screen that appears before the next human's turn. It should hide all private cards until that player clicks Continue.
+
+When playing with one human and bots, the screen should not appear. Keep the existing turn progression and card-rendering logic as unchanged as possible.
+
+- Added the pass-to-player overlay and Continue button.
+- Updated the game to hide private cards while the cover was displayed.
+- Prevented players from interacting with the game before dismissing the cover.
+
+8) Check whether the new privacy screen actually hides the table. If it is transparent, make this specific screen fully opaque without changing the styling of the other overlays. Also make sure the current player's hidden cards only become visible after clicking Continue.
+
+- Added opaque styling specifically for the privacy screen.
+- Preserved the existing styling for other overlays.
+- Ensured that hidden information was not visible through the cover.
+
+9) Test the privacy feature with different player configurations, 1 human and 3 bots, 2 humans and 2 bots, and multiple human players.
+Check that the correct player sees their hidden cards and that other players' information remains concealed.
+
+- Tested games with different combinations of human and bot players.
+- Verified that the cover appeared during multiplayer human handoffs.
+- Confirmed that the cover was skipped when only one human remained.
+
+10) Now implement the stealing animation from the original specification.
+When a human or bot steals a card, make that card visually slide from the victim's hand into the thief's hand over about half a second.
+
+- Implemented smooth card movement between player positions.
+- Updated rendering so the stolen card only appeared once during its movement.

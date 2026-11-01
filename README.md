@@ -65,23 +65,23 @@ errors). That script called the UI functions directly; it did not use real mouse
 ### P2: bots. All met (Phase 2).
 | # | Status | Notes |
 |---|--------|-------|
-| 16 | ✅ Met | All 3 steps. Step 1 (`findBestSteal()` in `js/bots.js`): steal only if the card raises the hand **category** without busting, picking the best resulting hand. Tested, including bust, kicker-only and 5-card cases. |
+| 16 | ✅ Met | All 3 steps. steal only if the card raises the hand category without busting, picking the best resulting hand. Tested, including bust, kicker only and 5 card cases. |
 | 17 | ✅ Met | 1-second delay; bot actions appear in the log. |
-| 18 | ✅ Met | Re-checked with bot stealing: 3 full 1 human + 3 bots games in headless Chrome (5–8 bot steals each, no errors), and an engine test plays 200 all-bot games to game over with only legal moves. |
+| 18 | ✅ Met | Re checked with bot stealing: 3 full 1 human + 3 bots games in headless Chrome and an engine test plays 200 all-bot games to game over with only legal moves. |
 
 ### P3: hot-seat privacy. All met (Phase 2).
 | # | Status | Notes |
 |---|--------|-------|
-| 19 | ✅ Met | With 2+ humans still in the game, an opaque "Pass to Player N" cover (`#pass-cover`) appears before every human turn and hides the whole page. Draw/Steal/Stand and canvas clicks are ignored until that player clicks **Continue**. Once only one human is left (the others eliminated), it behaves like #21. |
-| 20 | ✅ Met | `getViewerIndex()` returns -1 while the cover is up and during bot turns, and the current human's seat after **Continue**, so only they see their hidden cards and total. |
+| 19 | ✅ Met | With 2+ humans still in the game, an opaque "Pass to Player N" cover appears before every human turn and hides the whole page. Draw/Steal/Stand and canvas clicks are ignored until that player clicks Continue. |
+| 20 | ✅ Met | `getViewerIndex()` returns -1 while the cover is up and during bot turns, and the current human's seat after Continue, so only they see their hidden cards and total. |
 | 21 | ✅ Met | With exactly 1 human the cover never appears, and that human's hidden cards are always visible. |
 
 ### P4: casino polish. Partially done.
 | # | Status | Notes |
 |---|--------|-------|
 | 22 | 🟡 Partial | Green felt, wooden rail, dark warm page palette. No lighting or texture. |
-| 23 | ✅ Met | Every steal (human or bot) slides the card from the victim's seat to its slot in the thief's hand over 0.5 s, with a drop shadow. The card is never drawn twice: its landing slot stays empty until it arrives. Input, bot turns, the pass cover and the game-over screen wait until it lands. The stolen card is always face-up, so the animation reveals nothing private. |
-| 24 | ❌ Not met | No flip animation; cards just appear face-up at showdown. |
+| 23 | ✅ Met | Every steal (human or bot) slides the card from the victim's seat to its slot in the thief's hand over 0.5 s, with a drop shadow. The card is never drawn twice, its landing slot stays empty until it arrives. |
+| 24 | ❌ Not met | No flip animation. |
 | 25 | ❌ Not met | No sound and no mute button. |
 
 ## Code map

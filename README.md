@@ -69,12 +69,12 @@ errors). That script called the UI functions directly; it did not use real mouse
 | 17 | ✅ Met | 1-second delay; bot actions appear in the log. |
 | 18 | ✅ Met | Re-checked with bot stealing: 3 full 1 human + 3 bots games in headless Chrome (5–8 bot steals each, no errors), and an engine test plays 200 all-bot games to game over with only legal moves. |
 
-### P3: hot-seat privacy. Not started, apart from the card-visibility logic.
+### P3: hot-seat privacy. All met (Phase 2).
 | # | Status | Notes |
 |---|--------|-------|
-| 19 | ❌ Not met | There is no "Pass to Player N" cover. With 2+ humans, the next player can see the previous player's hidden cards on screen during that player's turn. |
-| 20 | 🟡 Partial | The rendering rule already works: only the current human's hidden cards are drawn face-up and the rest are backs (`getViewerIndex()` in `main.js`). Without the cover from #19 it doesn't actually keep anything private. |
-| 21 | ✅ Met | Trivially, since the cover doesn't exist. Keep it true when you add #19. |
+| 19 | ✅ Met | With 2+ humans still in the game, an opaque "Pass to Player N" cover (`#pass-cover`) appears before every human turn and hides the whole page. Draw/Steal/Stand and canvas clicks are ignored until that player clicks **Continue**. Once only one human is left (the others eliminated), it behaves like #21. |
+| 20 | ✅ Met | `getViewerIndex()` returns -1 while the cover is up and during bot turns, and the current human's seat after **Continue**, so only they see their hidden cards and total. |
+| 21 | ✅ Met | With exactly 1 human the cover never appears, and that human's hidden cards are always visible. |
 
 ### P4: casino polish. Barely started.
 | # | Status | Notes |
@@ -91,14 +91,14 @@ the files above it.
 
 | File | Responsibility | Go here to change… |
 |------|----------------|--------------------|
-| `index.html` | Page structure: setup screen, canvas, buttons, log, the **How to play** rules box, game-over overlay. A TODO marks where the P3 cover goes. | Adding screens, overlays or buttons |
+| `index.html` | Page structure: setup screen, canvas, buttons, log, the **How to play** rules box, game-over overlay. The "Pass to Player N" cover (`#pass-cover`). | Adding screens, overlays or buttons |
 | `css/style.css` | Page styling only (not the table). | Button and panel look, page palette |
 | `js/cards.js` | Deck creation and shuffle; **blackjack** values (`handTotal`, `isBust`); `cardLabel`. Cards are `{ rank: 2–14, suit, faceUp }`, with Ace = 14. | Card values, Ace rule |
 | `js/pokerRank.js` | **Poker** hand evaluation for 2–5 cards (`evaluateHand`) and comparison (`compareHands`). Enforces "straights/flushes need 5 cards". | Hand ranking, tie-breaking |
 | `js/gameState.js` | `Game` class, the rules engine: antes, dealing, turn order, `draw()`, `steal()`, `stand()`, busting, `showdown()`, pot splitting, elimination. Tunable constants are at the top. No DOM access. | Any game rule, turn flow, chips |
 | `js/bots.js` | `chooseBotAction(game, seat)` returns `{type:'draw'|'stand'|'steal', ...}`. Decision only; it doesn't apply the action. `findBestSteal()` is step 1 of the bot rule. | Bot behaviour |
 | `js/render.js` | `renderTable()` draws everything on the canvas from game state. Records `cardHitboxes`, which `findCardAt(x, y)` uses for clicks. Colors and seat positions are at the top. | Visuals and P4 polish, layout |
-| `js/main.js` | UI controller: setup screen, button and canvas handlers, bot turn timer, `refresh()` after every change, `getViewerIndex()` (who sees hidden cards). | Input, flow between screens, P3 cover |
+| `js/main.js` | UI controller: setup screen, button and canvas handlers, bot turn timer, `refresh()` after every change, `getViewerIndex()` (who sees hidden cards), the hot-seat pass cover (`isPassCoverNeeded()`). | Input, flow between screens, hot-seat privacy |
 | `tests/run-tests.js` | Node test runner for the engine. Use `gameWithDeck()` to build a game with a fixed deck. | Add a test whenever you change a rule |
 
 How the pieces talk:
@@ -111,9 +111,7 @@ How the pieces talk:
 ## What I'd do next (priority order)
 
 1. ~~**Bot stealing** (criterion 16)~~: done in Phase 2.
-2. **Pass-device cover** (criteria 19–21): add an overlay to `index.html` and show it in
-   `main.js` before a human's turn when there are 2 or more humans. While it's up,
-   `getViewerIndex()` should return -1.
+2. ~~**Pass-device cover** (criteria 19–21)~~: done in Phase 2.
 3. **Steal slide animation** (criterion 23). This is the most important polish item, because
    stealing is the signature move. It needs an animation loop; see the TODO in `render.js`.
 4. **Reveal flip** (criterion 24), then **sounds and a mute button** (criterion 25), then palette
@@ -130,7 +128,9 @@ How the pieces talk:
   same conversion.
 - **`cardHitboxes` is rebuilt on every render.** Clicks therefore match whatever was drawn last.
   If you add animations, make sure hitboxes don't point at cards that are mid-flight.
-- **No hot-seat privacy yet** (see criterion 19).
+- **The pass cover is keyed per turn** (`round:turn:seat` in `main.js`), not per player, so it
+  appears before every human turn, even when the same human acts twice in a row because
+  everyone else busted.
 - **A player can steal or draw themselves into a bust.** This is intended (it's legal), but
   humans get no warning.
 - **Eliminated players forfeit chips in a carried-over pot.** If everyone busts and a player

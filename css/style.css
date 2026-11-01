@@ -127,3 +127,10 @@ button.active { background: var(--accent); color: #14110f; }
   align-items: center;
   justify-content: center;
 }
+
+/* The pass cover must hide every card (SPEC criterion 19), so unlike the game-over overlay
+   it is fully opaque. */
+.pass-cover {
+  background: var(--background);
+  text-align: center;
+}

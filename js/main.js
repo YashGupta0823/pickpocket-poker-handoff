@@ -23,12 +23,19 @@ const elements = {
   gameOverScreen: document.getElementById('game-over-screen'),
   gameOverMessage: document.getElementById('game-over-message'),
   restartButton: document.getElementById('restart-button'),
+  passCover: document.getElementById('pass-cover'),
+  passCoverMessage: document.getElementById('pass-cover-message'),
+  passCoverButton: document.getElementById('pass-cover-button'),
 };
 const canvasContext = elements.canvas.getContext('2d');
 
 let game = null;
 let isChoosingStealTarget = false; // true after clicking Steal, until a card is picked or Steal is clicked again
 let pendingBotTimer = null;
+// The turn ("round:turn:seat") whose pass cover was last dismissed with Continue. Keyed per
+// turn, not per seat, so the cover comes back for every human turn (SPEC: "before each
+// human's turn"), even if the same human ends up acting twice in a row.
+let passCoverDismissedTurnKey = null;
 
 // ---------- Setup screen ----------
 
@@ -64,6 +71,7 @@ function startGame() {
   game = new Game(readSeatConfigs());
   game.startRound();
   isChoosingStealTarget = false;
+  passCoverDismissedTurnKey = null; // a new game can repeat the last game's turn keys
   elements.setupScreen.classList.add('hidden');
   elements.gameOverScreen.classList.add('hidden');
   elements.gameScreen.classList.remove('hidden');
@@ -72,8 +80,36 @@ function startGame() {
 
 // ---------- Player input ----------
 
+// True when a human may act right now. False while the pass cover is up, so the buttons and
+// canvas ignore input until the next player clicks Continue.
 function isHumanTurn() {
-  return game && game.phase === GAME_PHASE.TURNS && !game.getCurrentPlayer().isBot;
+  return game && game.phase === GAME_PHASE.TURNS && !game.getCurrentPlayer().isBot && !isPassCoverNeeded();
+}
+
+// ---------- Hot-seat privacy (SPEC criteria 19–21) ----------
+
+// Human seats still in the game. Once only one human is left (the others were eliminated),
+// the table behaves like a 1-human game: no cover, and that human always sees their cards.
+function getHumanSeatsInGame() {
+  return game.players
+    .map((p, i) => (!p.isBot && p.status !== PLAYER_STATUS.ELIMINATED ? i : -1))
+    .filter(i => i >= 0);
+}
+
+function getCurrentTurnKey() {
+  return `${game.roundNumber}:${game.turnNumber}:${game.currentPlayerIndex}`;
+}
+
+function isPassCoverNeeded() {
+  return Boolean(game) && game.phase === GAME_PHASE.TURNS && !game.getCurrentPlayer().isBot
+    && getHumanSeatsInGame().length >= 2
+    && passCoverDismissedTurnKey !== getCurrentTurnKey();
+}
+
+function onPassCoverContinueClicked() {
+  if (!isPassCoverNeeded()) return;
+  passCoverDismissedTurnKey = getCurrentTurnKey();
+  refresh();
 }
 
 function onDrawClicked() {
@@ -144,11 +180,10 @@ function runBotTurn() {
 
 // Whose hidden cards are shown face-up during play:
 //  - exactly one human: always that human (bots don't look at the screen)
-//  - several humans: whoever's turn it is, if human. Otherwise nobody.
-// TODO (P3, SPEC criteria 19–21): with several humans, show a "Pass to Player N" cover
-// before each human turn. Right now player B can see player A's hidden cards on A's turn.
+//  - several humans: whoever's turn it is, if human, once they've dismissed the pass cover.
+//    Otherwise nobody (isHumanTurn() is false while the cover is up).
 function getViewerIndex() {
-  const humanSeats = game.players.map((p, i) => (p.isBot ? -1 : i)).filter(i => i >= 0);
+  const humanSeats = getHumanSeatsInGame();
   if (humanSeats.length === 1) return humanSeats[0];
   if (isHumanTurn()) return game.currentPlayerIndex;
   return -1;
@@ -159,6 +194,9 @@ function refresh() {
   updateControls();
   updateStatusMessage();
   updateMessageLog();
+  const showPassCover = isPassCoverNeeded();
+  elements.passCover.classList.toggle('hidden', !showPassCover);
+  if (showPassCover) elements.passCoverMessage.textContent = `Pass to ${game.getCurrentPlayer().name}`;
   if (game.phase === GAME_PHASE.GAME_OVER) {
     elements.gameOverMessage.textContent = `${game.players[game.gameWinnerIndex].name} wins the game!`;
     elements.gameOverScreen.classList.remove('hidden');
@@ -210,6 +248,7 @@ elements.stealButton.addEventListener('click', onStealClicked);
 elements.standButton.addEventListener('click', onStandClicked);
 elements.nextRoundButton.addEventListener('click', onNextRoundClicked);
 elements.canvas.addEventListener('click', onCanvasClicked);
+elements.passCoverButton.addEventListener('click', onPassCoverContinueClicked);
 elements.restartButton.addEventListener('click', () => {
   elements.gameOverScreen.classList.add('hidden');
   elements.gameScreen.classList.add('hidden');

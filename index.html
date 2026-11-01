@@ -65,8 +65,15 @@
     </div>
   </section>
 
-  <!-- TODO (P3, SPEC criteria 19–21): add the "Pass to Player N" cover here, styled like
-       #game-over-screen. Show/hide it from main.js before each human turn. -->
+  <!-- Hot-seat "Pass to Player N" cover (SPEC criteria 19–21). main.js shows it before each
+       human turn when 2+ humans are playing; it is opaque so no cards show through. -->
+  <section id="pass-cover" class="overlay pass-cover hidden">
+    <div class="panel">
+      <h2 id="pass-cover-message"></h2>
+      <p>Everyone else, look away. Click when you're ready to see your cards.</p>
+      <button id="pass-cover-button">Continue</button>
+    </div>
+  </section>
 
   <!-- Plain scripts, not ES modules, so the game works by double-clicking index.html
        (module scripts are blocked on file://). ORDER MATTERS: later files use globals

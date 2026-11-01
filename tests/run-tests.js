@@ -7,6 +7,7 @@
 Object.assign(globalThis, require('../js/cards.js'));
 Object.assign(globalThis, require('../js/pokerRank.js'));
 Object.assign(globalThis, require('../js/gameState.js'));
+Object.assign(globalThis, require('../js/bots.js'));
 
 let passed = 0;
 let failed = 0;
@@ -219,6 +220,75 @@ test('player with 0 chips is eliminated and game ends', () => {
   assertEqual(game.players[0].status, PLAYER_STATUS.ELIMINATED);
   assertEqual(game.phase, GAME_PHASE.GAME_OVER);
   assertEqual(game.gameWinnerIndex, 1);
+});
+
+// ---------- bots.js ----------
+// In a 2-seat game the button starts on seat 0, so seat 1 is dealt first and acts first.
+// In a 3-seat game the deal and turn order is seat 1, seat 2, seat 0.
+
+test('bot steals a face-up card that upgrades its category (high card -> pair)', () => {
+  // seat 1: KH 5S, seat 0: 9H 4S. Seat 1 draws 4D, then bot seat 0 can pair its 4.
+  const game = gameWithDeck(2, 'KH 5S 9H 4S 4D');
+  game.draw();
+  assertEqual(chooseBotAction(game, 0), { type: 'steal', victimIndex: 1, cardIndex: 2 });
+});
+
+test('bot does not steal a card that would bust it', () => {
+  // Bot seat 0 holds KH QS (20). Stealing KD would make a pair but total 30.
+  const game = gameWithDeck(2, 'KC 5S KH QS KD');
+  game.draw();
+  assertEqual(chooseBotAction(game, 0), { type: 'stand' });
+});
+
+test('bot does not steal for a better kicker alone; falls back to drawing', () => {
+  // Bot seat 0 holds a pair of 4s (8). Stealing 2D adds only a kicker, so it draws instead.
+  const game = gameWithDeck(2, '3C 5S 4H 4S 2D');
+  game.draw();
+  assertEqual(chooseBotAction(game, 0), { type: 'draw' });
+});
+
+test('bot picks the steal that gives the best resulting hand, not the first one', () => {
+  // Bot seat 0 holds 7H 2S. Seat 1 shows 2D (pair of 2s), seat 2 shows 7D (pair of 7s).
+  const game = gameWithDeck(3, 'KC 3S QC 4S 7H 2S 2D 7D');
+  game.draw();
+  game.draw();
+  assertEqual(chooseBotAction(game, 0), { type: 'steal', victimIndex: 2, cardIndex: 2 });
+});
+
+test('bot with 5 cards never steals', () => {
+  // Bot seat 0 ends up with 2H 3S AD 5C 7D (high card, 18). Stealing 2D would pair it at 20,
+  // so only the 5-card limit stops the steal.
+  const game = gameWithDeck(2, 'KH 5S 2H 3S 2D');
+  game.draw();
+  game.players[0].hand.push(...cards('AD 5C 7D'));
+  assertEqual(findBestSteal(game, 0), null);
+  assertEqual(chooseBotAction(game, 0), { type: 'stand' });
+});
+
+test('all-bot games run to game over with legal moves, steals happen, chips are conserved', () => {
+  let steals = 0;
+  for (let g = 0; g < 200; g++) {
+    const seatCount = 2 + (g % 3);
+    const seats = Array.from({ length: seatCount }, (_, i) => ({ name: `Bot ${i}`, isBot: true }));
+    const game = new Game(seats);
+    game.startRound();
+    for (let step = 0; step < 10000 && game.phase !== GAME_PHASE.GAME_OVER; step++) {
+      if (game.phase === GAME_PHASE.ROUND_OVER) {
+        const chipsInPlay = game.players.reduce((sum, p) => sum + p.chips, 0) + game.pot;
+        assertEqual(chipsInPlay, STARTING_CHIPS * seatCount, 'chips in play');
+        game.startNextRound();
+        continue;
+      }
+      const action = chooseBotAction(game, game.currentPlayerIndex);
+      if (action.type === 'steal') steals++;
+      const result = action.type === 'draw' ? game.draw()
+        : action.type === 'steal' ? game.steal(action.victimIndex, action.cardIndex)
+        : game.stand();
+      assertEqual(result.ok, true, `bot ${action.type} was legal`);
+    }
+    assertEqual(game.phase, GAME_PHASE.GAME_OVER, 'game finished');
+  }
+  if (steals === 0) throw new Error('bots never stole in 200 games');
 });
 
 console.log(`\n${passed} passed, ${failed} failed`);

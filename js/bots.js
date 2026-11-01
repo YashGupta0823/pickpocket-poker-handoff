@@ -17,19 +17,10 @@ const BOT_DRAW_THRESHOLD = 15; // draw while total is at or below this
 function chooseBotAction(game, botSeat) {
   const bot = game.players[botSeat];
 
-  // TODO (P2, SPEC criterion 16): step 1, stealing, is NOT implemented yet. Bots never
-  // steal right now. Suggested approach:
-  //   - for each option in game.getStealableCards(botSeat) (only if game.canSteal(botSeat)):
-  //       const newHand = [...bot.hand, option.card];
-  //       skip if isBust(newHand)
-  //       keep it only if evaluateHand(newHand).category > evaluateHand(bot.hand).category
-  //   - pick the option whose evaluateHand(newHand) is best (use compareHands to sort)
-  //   - return { type: 'steal', victimIndex: option.victimIndex, cardIndex: option.cardIndex }
-  // DECIDED BY THE AUTHOR: "improve" means the hand CATEGORY goes up (e.g. high card -> pair,
-  // pair -> two pair). Compare evaluateHand(newHand).category > evaluateHand(bot.hand).category.
-  // Do NOT use compareHands() for this check: any extra card adds a kicker, which compareHands
-  // counts as better, and bots would steal nearly every turn. (compareHands IS the right tool
-  // for choosing the BEST of several qualifying steals.)
+  const bestSteal = findBestSteal(game, botSeat);
+  if (bestSteal) {
+    return { type: 'steal', victimIndex: bestSteal.victimIndex, cardIndex: bestSteal.cardIndex };
+  }
 
   if (game.canDraw(botSeat) && handTotal(bot.hand) <= BOT_DRAW_THRESHOLD) {
     return { type: 'draw' };
@@ -37,6 +28,33 @@ function chooseBotAction(game, botSeat) {
   return { type: 'stand' };
 }
 
+// Step 1: returns the stealable option ({ victimIndex, cardIndex, card }) that gives the best
+// resulting hand, among those that raise the hand CATEGORY without busting. null if none do.
+// DECIDED BY THE AUTHOR: "improve" means the hand CATEGORY goes up (e.g. high card -> pair,
+// pair -> two pair). Do NOT use compareHands() for that check: any extra card adds a kicker,
+// which compareHands counts as better, and bots would steal nearly every turn. (compareHands IS
+// the right tool for choosing the BEST of several qualifying steals.)
+function findBestSteal(game, botSeat) {
+  if (!game.canSteal(botSeat)) return null;
+  const hand = game.players[botSeat].hand;
+  const currentCategory = evaluateHand(hand).category;
+
+  let bestOption = null;
+  let bestEvaluation = null;
+  for (const option of game.getStealableCards(botSeat)) {
+    const newHand = [...hand, option.card];
+    if (isBust(newHand)) continue;
+    const evaluation = evaluateHand(newHand);
+    if (evaluation.category <= currentCategory) continue;
+    // Strictly better only, so equal options go to the first one found (seat order).
+    if (!bestOption || compareHands(evaluation, bestEvaluation) > 0) {
+      bestOption = option;
+      bestEvaluation = evaluation;
+    }
+  }
+  return bestOption;
+}
+
 if (typeof module !== 'undefined') {
-  module.exports = { chooseBotAction, BOT_DRAW_THRESHOLD };
+  module.exports = { chooseBotAction, findBestSteal, BOT_DRAW_THRESHOLD };
 }

@@ -12,7 +12,7 @@ checked against the code; if something is broken or missing, it says so.
 - **Play:** open `index.html` in Chrome, Firefox or Safari (double-click it). No install, no build
   step, no server. Plain HTML/CSS/JS.
 - **Engine tests:** `node tests/run-tests.js` from the repo root (any recent Node; no
-  `npm install`). Currently 32 tests, all passing. These cover the rules only, not the UI.
+  `npm install`). Currently 38 tests, all passing. These cover the rules only, not the UI.
 
 ## How to play
 
@@ -62,12 +62,12 @@ errors). That script called the UI functions directly; it did not use real mouse
 | 14 | ✅ Met | |
 | 15 | ✅ Met | The game-over overlay's **Play again** returns to the setup screen. |
 
-### P2: bots. Partially done.
+### P2: bots. All met (Phase 2).
 | # | Status | Notes |
 |---|--------|-------|
-| 16 | 🟡 Partial | Bots do steps 2 and 3 (draw if total ≤ 15, else stand). **Step 1 (stealing) is not implemented, so bots never steal.** There is a detailed TODO in `js/bots.js`. |
+| 16 | ✅ Met | All 3 steps. Step 1 (`findBestSteal()` in `js/bots.js`): steal only if the card raises the hand **category** without busting, picking the best resulting hand. Tested, including bust, kicker-only and 5-card cases. |
 | 17 | ✅ Met | 1-second delay; bot actions appear in the log. |
-| 18 | 🟡 Partial | A full 1 human + 3 bots game ran without errors (scripted run above). Re-check it once bot stealing exists. |
+| 18 | ✅ Met | Re-checked with bot stealing: 3 full 1 human + 3 bots games in headless Chrome (5–8 bot steals each, no errors), and an engine test plays 200 all-bot games to game over with only legal moves. |
 
 ### P3: hot-seat privacy. Not started, apart from the card-visibility logic.
 | # | Status | Notes |
@@ -96,7 +96,7 @@ the files above it.
 | `js/cards.js` | Deck creation and shuffle; **blackjack** values (`handTotal`, `isBust`); `cardLabel`. Cards are `{ rank: 2–14, suit, faceUp }`, with Ace = 14. | Card values, Ace rule |
 | `js/pokerRank.js` | **Poker** hand evaluation for 2–5 cards (`evaluateHand`) and comparison (`compareHands`). Enforces "straights/flushes need 5 cards". | Hand ranking, tie-breaking |
 | `js/gameState.js` | `Game` class, the rules engine: antes, dealing, turn order, `draw()`, `steal()`, `stand()`, busting, `showdown()`, pot splitting, elimination. Tunable constants are at the top. No DOM access. | Any game rule, turn flow, chips |
-| `js/bots.js` | `chooseBotAction(game, seat)` returns `{type:'draw'|'stand'|'steal', ...}`. Decision only; it doesn't apply the action. | Bot behaviour (**the P2 work**) |
+| `js/bots.js` | `chooseBotAction(game, seat)` returns `{type:'draw'|'stand'|'steal', ...}`. Decision only; it doesn't apply the action. `findBestSteal()` is step 1 of the bot rule. | Bot behaviour |
 | `js/render.js` | `renderTable()` draws everything on the canvas from game state. Records `cardHitboxes`, which `findCardAt(x, y)` uses for clicks. Colors and seat positions are at the top. | Visuals and P4 polish, layout |
 | `js/main.js` | UI controller: setup screen, button and canvas handlers, bot turn timer, `refresh()` after every change, `getViewerIndex()` (who sees hidden cards). | Input, flow between screens, P3 cover |
 | `tests/run-tests.js` | Node test runner for the engine. Use `gameWithDeck()` to build a game with a fixed deck. | Add a test whenever you change a rule |
@@ -110,8 +110,7 @@ How the pieces talk:
 
 ## What I'd do next (priority order)
 
-1. **Bot stealing** (criterion 16): follow the TODO in `js/bots.js`. Note that the author decided
-   "improve" means a **category** upgrade, not just a better kicker. About 20 lines.
+1. ~~**Bot stealing** (criterion 16)~~: done in Phase 2.
 2. **Pass-device cover** (criteria 19–21): add an overlay to `index.html` and show it in
    `main.js` before a human's turn when there are 2 or more humans. While it's up,
    `getViewerIndex()` should return -1.

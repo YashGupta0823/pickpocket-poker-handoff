@@ -76,11 +76,11 @@ errors). That script called the UI functions directly; it did not use real mouse
 | 20 | ✅ Met | `getViewerIndex()` returns -1 while the cover is up and during bot turns, and the current human's seat after **Continue**, so only they see their hidden cards and total. |
 | 21 | ✅ Met | With exactly 1 human the cover never appears, and that human's hidden cards are always visible. |
 
-### P4: casino polish. Barely started.
+### P4: casino polish. Partially done.
 | # | Status | Notes |
 |---|--------|-------|
 | 22 | 🟡 Partial | Green felt, wooden rail, dark warm page palette. No lighting or texture. |
-| 23 | ❌ Not met | No steal animation. |
+| 23 | ✅ Met | Every steal (human or bot) slides the card from the victim's seat to its slot in the thief's hand over 0.5 s, with a drop shadow. The card is never drawn twice: its landing slot stays empty until it arrives. Input, bot turns, the pass cover and the game-over screen wait until it lands. The stolen card is always face-up, so the animation reveals nothing private. |
 | 24 | ❌ Not met | No flip animation; cards just appear face-up at showdown. |
 | 25 | ❌ Not met | No sound and no mute button. |
 
@@ -97,8 +97,8 @@ the files above it.
 | `js/pokerRank.js` | **Poker** hand evaluation for 2–5 cards (`evaluateHand`) and comparison (`compareHands`). Enforces "straights/flushes need 5 cards". | Hand ranking, tie-breaking |
 | `js/gameState.js` | `Game` class, the rules engine: antes, dealing, turn order, `draw()`, `steal()`, `stand()`, busting, `showdown()`, pot splitting, elimination. Tunable constants are at the top. No DOM access. | Any game rule, turn flow, chips |
 | `js/bots.js` | `chooseBotAction(game, seat)` returns `{type:'draw'|'stand'|'steal', ...}`. Decision only; it doesn't apply the action. `findBestSteal()` is step 1 of the bot rule. | Bot behaviour |
-| `js/render.js` | `renderTable()` draws everything on the canvas from game state. Records `cardHitboxes`, which `findCardAt(x, y)` uses for clicks. Colors and seat positions are at the top. | Visuals and P4 polish, layout |
-| `js/main.js` | UI controller: setup screen, button and canvas handlers, bot turn timer, `refresh()` after every change, `getViewerIndex()` (who sees hidden cards), the hot-seat pass cover (`isPassCoverNeeded()`). | Input, flow between screens, hot-seat privacy |
+| `js/render.js` | `renderTable()` draws everything on the canvas from game state. Records `cardHitboxes`, which `findCardAt(x, y)` uses for clicks. `getCardSlotPosition()` is where a card sits in a hand; `drawCardInFlight()` draws the sliding card. Colors and seat positions are at the top. | Visuals and P4 polish, layout |
+| `js/main.js` | UI controller: setup screen, button and canvas handlers, bot turn timer, `refresh()` after every change, `getViewerIndex()` (who sees hidden cards), the hot-seat pass cover (`isPassCoverNeeded()`), the steal animation loop (`stealWithAnimation()`). | Input, flow between screens, hot-seat privacy, animations |
 | `tests/run-tests.js` | Node test runner for the engine. Use `gameWithDeck()` to build a game with a fixed deck. | Add a test whenever you change a rule |
 
 How the pieces talk:
@@ -112,8 +112,8 @@ How the pieces talk:
 
 1. ~~**Bot stealing** (criterion 16)~~: done in Phase 2.
 2. ~~**Pass-device cover** (criteria 19–21)~~: done in Phase 2.
-3. **Steal slide animation** (criterion 23). This is the most important polish item, because
-   stealing is the signature move. It needs an animation loop; see the TODO in `render.js`.
+3. ~~**Steal slide animation** (criterion 23)~~: done in Phase 2. The reveal flip can reuse its
+   `requestAnimationFrame` loop in `main.js`.
 4. **Reveal flip** (criterion 24), then **sounds and a mute button** (criterion 25), then palette
    and lighting (criterion 22).
 
@@ -127,7 +127,7 @@ How the pieces talk:
   Click positions are converted in `onCanvasClicked()`; any new canvas click handling must do the
   same conversion.
 - **`cardHitboxes` is rebuilt on every render.** Clicks therefore match whatever was drawn last.
-  If you add animations, make sure hitboxes don't point at cards that are mid-flight.
+  The card sliding during a steal gets no hitbox, and all input is ignored until it lands.
 - **The pass cover is keyed per turn** (`round:turn:seat` in `main.js`), not per player, so it
   appears before every human turn, even when the same human acts twice in a row because
   everyone else busted.
@@ -149,8 +149,10 @@ How the pieces talk:
 
 ## Corners cut, and why
 
-- **No animation loop.** The canvas only redraws when the state changes. It was simpler and
-  enough for the core loop; P4 will need a `requestAnimationFrame` loop.
+- **No general animation loop.** The canvas only redraws when the state changes, except for
+  the short steal-slide loop in `main.js`. The Game applies a steal instantly; the animation
+  only shows it afterwards. A backup timer ends the slide if the browser pauses
+  `requestAnimationFrame` (background tabs), so the game never waits on a hidden animation.
 - **The message log is HTML, not canvas.** Text in HTML gets scrolling and wrapping for free.
 - **No name entry**, to save time; names are generated in `readSeatConfigs()` in `main.js`.
 - **UI tests are scripted, not automated.** Only the engine has a test file. The UI was checked

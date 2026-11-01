@@ -6,6 +6,7 @@
 // Game method calls and Game state into what's on screen.
 
 const BOT_TURN_DELAY_MS = 1000; // SPEC: bots wait ~1 second so humans can follow along
+const STEAL_ANIMATION_MS = 500;  // SPEC criterion 23: long enough to follow, short enough not to drag
 
 const elements = {
   setupScreen: document.getElementById('setup-screen'),
@@ -36,6 +37,10 @@ let pendingBotTimer = null;
 // turn, not per seat, so the cover comes back for every human turn (SPEC: "before each
 // human's turn"), even if the same human ends up acting twice in a row.
 let passCoverDismissedTurnKey = null;
+// The steal slide in progress, or null: { card, thiefIndex, fromX, fromY, startTime }.
+// The Game has already moved the card; this only animates it. While it runs, all input, bot
+// turns, the pass cover and the game-over screen wait, so nothing acts on a card mid-flight.
+let stealAnimation = null;
 
 // ---------- Setup screen ----------
 
@@ -72,6 +77,7 @@ function startGame() {
   game.startRound();
   isChoosingStealTarget = false;
   passCoverDismissedTurnKey = null; // a new game can repeat the last game's turn keys
+  stealAnimation = null;
   elements.setupScreen.classList.add('hidden');
   elements.gameOverScreen.classList.add('hidden');
   elements.gameScreen.classList.remove('hidden');
@@ -80,10 +86,11 @@ function startGame() {
 
 // ---------- Player input ----------
 
-// True when a human may act right now. False while the pass cover is up, so the buttons and
-// canvas ignore input until the next player clicks Continue.
+// True when a human may act right now. False while the pass cover is up or a steal is
+// animating, so the buttons and canvas ignore input until then.
 function isHumanTurn() {
-  return game && game.phase === GAME_PHASE.TURNS && !game.getCurrentPlayer().isBot && !isPassCoverNeeded();
+  return game && game.phase === GAME_PHASE.TURNS && !game.getCurrentPlayer().isBot
+    && !isPassCoverNeeded() && !stealAnimation;
 }
 
 // ---------- Hot-seat privacy (SPEC criteria 19–21) ----------
@@ -103,7 +110,8 @@ function getCurrentTurnKey() {
 function isPassCoverNeeded() {
   return Boolean(game) && game.phase === GAME_PHASE.TURNS && !game.getCurrentPlayer().isBot
     && getHumanSeatsInGame().length >= 2
-    && passCoverDismissedTurnKey !== getCurrentTurnKey();
+    && passCoverDismissedTurnKey !== getCurrentTurnKey()
+    && !stealAnimation; // let everyone watch the steal first; the cover comes up right after
 }
 
 function onPassCoverContinueClicked() {
@@ -138,12 +146,13 @@ function onCanvasClicked(event) {
   const y = (event.clientY - rect.top) * (elements.canvas.height / rect.height);
   const clicked = findCardAt(x, y);
   if (!clicked) return;
-  const result = game.steal(clicked.playerIndex, clicked.cardIndex);
+  const result = stealWithAnimation(clicked.playerIndex, clicked.cardIndex);
   if (result.ok) isChoosingStealTarget = false;
   showResult(result);
 }
 
 function onNextRoundClicked() {
+  if (stealAnimation) return;
   game.startNextRound();
   refresh();
 }
@@ -157,7 +166,7 @@ function showResult(result) {
 // ---------- Bots ----------
 
 function scheduleBotTurnIfNeeded() {
-  if (pendingBotTimer || !game || game.phase !== GAME_PHASE.TURNS) return;
+  if (pendingBotTimer || stealAnimation || !game || game.phase !== GAME_PHASE.TURNS) return;
   if (!game.getCurrentPlayer().isBot) return;
   pendingBotTimer = setTimeout(() => {
     pendingBotTimer = null;
@@ -170,10 +179,71 @@ function runBotTurn() {
   const action = chooseBotAction(game, game.currentPlayerIndex);
   let result;
   if (action.type === 'draw') result = game.draw();
-  else if (action.type === 'steal') result = game.steal(action.victimIndex, action.cardIndex);
+  else if (action.type === 'steal') result = stealWithAnimation(action.victimIndex, action.cardIndex);
   else result = game.stand();
   // A bot choosing an illegal move would freeze the game, so fall back to standing.
   if (!result.ok) game.stand();
+}
+
+// ---------- Steal animation (SPEC criterion 23) ----------
+
+// Used for every steal, human or bot. Applies the steal to the Game right away (so the rules
+// and log are unchanged), then slides the card from where it was last drawn to its slot in
+// the thief's hand. If the card was never drawn (no hitbox), it just appears, as before.
+function stealWithAnimation(victimIndex, cardIndex) {
+  const fromBox = cardHitboxes.find(box => box.playerIndex === victimIndex && box.cardIndex === cardIndex);
+  const card = game.players[victimIndex] && game.players[victimIndex].hand[cardIndex];
+  const thiefIndex = game.currentPlayerIndex;
+  const result = game.steal(victimIndex, cardIndex);
+  if (result.ok && fromBox) {
+    const animation = { card, thiefIndex, fromX: fromBox.x, fromY: fromBox.y, startTime: performance.now() };
+    stealAnimation = animation;
+    requestAnimationFrame(onStealAnimationFrame);
+    // Browsers pause requestAnimationFrame in background tabs. Without this backstop, a bot
+    // steal in a hidden tab would leave the game waiting on the animation until you came back.
+    setTimeout(() => {
+      if (stealAnimation === animation) finishStealAnimation();
+    }, STEAL_ANIMATION_MS + 250);
+  }
+  return result;
+}
+
+function onStealAnimationFrame() {
+  if (!stealAnimation) return; // finished by the backstop, or a new game was started
+  if (performance.now() - stealAnimation.startTime >= STEAL_ANIMATION_MS) {
+    finishStealAnimation();
+    return;
+  }
+  renderTableFrame();
+  requestAnimationFrame(onStealAnimationFrame);
+}
+
+function finishStealAnimation() {
+  stealAnimation = null;
+  refresh(); // final frame, plus whatever was waiting: pass cover, bot turn, game over
+}
+
+// Draws the table, with the stolen card mid-slide if a steal is animating. The card's own slot
+// in the thief's hand is left empty until it lands, so it is never drawn twice.
+function renderTableFrame() {
+  const view = { viewerIndex: getViewerIndex(), stealMode: isChoosingStealTarget };
+  if (!stealAnimation) {
+    renderTable(canvasContext, game, view);
+    return;
+  }
+  const { card, thiefIndex, fromX, fromY, startTime } = stealAnimation;
+  const cardIndex = game.players[thiefIndex].hand.indexOf(card);
+  view.cardInFlight = { playerIndex: thiefIndex, cardIndex };
+  renderTable(canvasContext, game, view);
+
+  const target = getCardSlotPosition(game, thiefIndex, cardIndex);
+  const progress = Math.min(1, (performance.now() - startTime) / STEAL_ANIMATION_MS);
+  const eased = progress < 0.5 ? 2 * progress * progress : 1 - (-2 * progress + 2) ** 2 / 2; // ease in-out
+  drawCardInFlight(
+    canvasContext, card,
+    fromX + (target.x - fromX) * eased,
+    fromY + (target.y - fromY) * eased,
+  );
 }
 
 // ---------- Drawing the UI from game state ----------
@@ -190,14 +260,14 @@ function getViewerIndex() {
 }
 
 function refresh() {
-  renderTable(canvasContext, game, { viewerIndex: getViewerIndex(), stealMode: isChoosingStealTarget });
+  renderTableFrame();
   updateControls();
   updateStatusMessage();
   updateMessageLog();
   const showPassCover = isPassCoverNeeded();
   elements.passCover.classList.toggle('hidden', !showPassCover);
   if (showPassCover) elements.passCoverMessage.textContent = `Pass to ${game.getCurrentPlayer().name}`;
-  if (game.phase === GAME_PHASE.GAME_OVER) {
+  if (game.phase === GAME_PHASE.GAME_OVER && !stealAnimation) {
     elements.gameOverMessage.textContent = `${game.players[game.gameWinnerIndex].name} wins the game!`;
     elements.gameOverScreen.classList.remove('hidden');
   }
@@ -211,7 +281,7 @@ function updateControls() {
   elements.stealButton.disabled = !humanTurn || !game.canSteal(seat);
   elements.standButton.disabled = !humanTurn;
   elements.stealButton.classList.toggle('active', isChoosingStealTarget);
-  elements.nextRoundButton.classList.toggle('hidden', game.phase !== GAME_PHASE.ROUND_OVER);
+  elements.nextRoundButton.classList.toggle('hidden', game.phase !== GAME_PHASE.ROUND_OVER || Boolean(stealAnimation));
 }
 
 function updateStatusMessage() {

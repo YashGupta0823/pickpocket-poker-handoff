@@ -3,8 +3,10 @@
 // figure out which card was clicked.
 //
 // Drawing happens only when something changes (main.js calls renderTable after each action).
-// There is NO animation loop yet. TODO (P4, SPEC criteria 23–24): the steal-slide and reveal-flip
-// animations will need a requestAnimationFrame loop, probably owned by main.js.
+// The steal slide (SPEC criterion 23) is the one exception: main.js runs a short
+// requestAnimationFrame loop that renders the table with the stolen card left out
+// (view.cardInFlight) and then draws it on top with drawCardInFlight().
+// TODO (P4, SPEC criterion 24): the reveal-flip animation can reuse that loop.
 
 const CANVAS_WIDTH = 960;
 const CANVAS_HEIGHT = 640;
@@ -43,6 +45,8 @@ let cardHitboxes = [];
 // view = {
 //   viewerIndex: seat whose hidden cards and total are shown face-up, or -1 for nobody,
 //   stealMode:   true while the current human is choosing a card to steal,
+//   cardInFlight: optional { playerIndex, cardIndex } of a card that is mid-animation. Its
+//                 slot is left empty (and gets no hitbox) so the card is never drawn twice.
 // }
 // At showdown (phase !== TURNS), everyone's cards are shown regardless of viewerIndex.
 function renderTable(context, game, view) {
@@ -60,7 +64,9 @@ function renderTable(context, game, view) {
   game.players.forEach((player, playerIndex) => {
     const position = SEAT_POSITIONS[game.players.length][playerIndex];
     const canSeeHiddenCards = isShowdown || playerIndex === view.viewerIndex;
-    drawSeat(context, game, player, playerIndex, position, canSeeHiddenCards, stealableKeys);
+    const skipCardIndex = view.cardInFlight && view.cardInFlight.playerIndex === playerIndex
+      ? view.cardInFlight.cardIndex : -1;
+    drawSeat(context, game, player, playerIndex, position, canSeeHiddenCards, stealableKeys, skipCardIndex);
   });
 
   drawCenterInfo(context, game);
@@ -89,7 +95,8 @@ function drawFelt(context) {
   context.fill();
 }
 
-function drawSeat(context, game, player, playerIndex, position, canSeeHiddenCards, stealableKeys) {
+// skipCardIndex: a card in this hand that is mid-animation (-1 for none). It is not drawn here.
+function drawSeat(context, game, player, playerIndex, position, canSeeHiddenCards, stealableKeys, skipCardIndex = -1) {
   const isEliminated = player.status === PLAYER_STATUS.ELIMINATED;
   const isCurrent = playerIndex === game.currentPlayerIndex;
   const isWinner = game.lastRoundResult && game.lastRoundResult.winners.includes(playerIndex);
@@ -120,11 +127,9 @@ function drawSeat(context, game, player, playerIndex, position, canSeeHiddenCard
   if (isEliminated) return;
 
   // Cards, centered on the seat position
-  const handWidth = player.hand.length * CARD_WIDTH + (player.hand.length - 1) * CARD_GAP;
-  const startX = position.x - handWidth / 2;
-  const cardY = position.y - CARD_HEIGHT / 2;
   player.hand.forEach((card, cardIndex) => {
-    const cardX = startX + cardIndex * (CARD_WIDTH + CARD_GAP);
+    if (cardIndex === skipCardIndex) return;
+    const { x: cardX, y: cardY } = getCardSlotPosition(game, playerIndex, cardIndex);
     const showFace = card.faceUp || canSeeHiddenCards;
     let outline = null;
     if (stealableKeys.has(`${playerIndex}:${cardIndex}`)) outline = TABLE_COLORS.stealable;
@@ -138,6 +143,34 @@ function drawSeat(context, game, player, playerIndex, position, canSeeHiddenCard
     context.fillStyle = TABLE_COLORS.currentTurn;
     context.fillRect(position.x - 40, position.y + CARD_HEIGHT / 2 + 8, 80, 4);
   }
+}
+
+// Top-left canvas position of card `cardIndex` in a seat's hand: cards are centered on the
+// seat. drawSeat uses this, and so does the steal animation to know where a card lands.
+function getCardSlotPosition(game, playerIndex, cardIndex) {
+  const position = SEAT_POSITIONS[game.players.length][playerIndex];
+  const handSize = game.players[playerIndex].hand.length;
+  const handWidth = handSize * CARD_WIDTH + (handSize - 1) * CARD_GAP;
+  return {
+    x: position.x - handWidth / 2 + cardIndex * (CARD_WIDTH + CARD_GAP),
+    y: position.y - CARD_HEIGHT / 2,
+  };
+}
+
+// A card sliding across the table (the steal animation), drawn on top of everything.
+// Only face-up cards can be stolen, so it is always drawn face-up: nothing private is shown.
+function drawCardInFlight(context, card, x, y) {
+  // Lift it off the felt with a shadow, cast from a plain card shape so the rank and suit
+  // text stay crisp.
+  context.save();
+  context.shadowColor = 'rgba(0, 0, 0, 0.5)';
+  context.shadowBlur = 12;
+  context.shadowOffsetY = 4;
+  context.fillStyle = TABLE_COLORS.cardFace;
+  roundedRect(context, x, y, CARD_WIDTH, CARD_HEIGHT, 6);
+  context.fill();
+  context.restore();
+  drawCard(context, card, x, y, card.faceUp, null);
 }
 
 // showFace: draw rank/suit (true) or a card back (false).

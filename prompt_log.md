@@ -203,3 +203,62 @@ When a human or bot steals a card, make that card visually slide from the victim
 
 - Implemented smooth card movement between player positions.
 - Updated rendering so the stolen card only appeared once during its movement.
+
+
+# HW9 — Prompt Log: Automated Testing and CI
+Tools: Claude Code
+1) Before making changes, read the project files and identify which parts of the existing game logic would be best suited for automated testing. Focus on functions with meaningful conditions or calculations rather than basic UI rendering.
+
+- Examined the existing game structure and 38 engine tests.
+- Identified privacy-cover logic, card visibility, and steal animation calculations as useful testing targets.
+
+2) Extract the three selected pieces of logic from main.js into a separate file with pure functions that accept inputs and return outputs. Keep the existing game behavior unchanged and do not fix any bugs you encounter.
+
+- Created js/uiLogic.js with three functions.
+- Updated main.js and index.html to use them.
+- Confirmed all 38 original tests passed and the game still worked in the browser.
+
+3) Expand the initial test into a complete suite covering all three functions. Include normal cases, boundary conditions, and unusual inputs. Use Node's built-in test runner and verify actual outputs rather than only checking whether functions run.
+
+- Added 22 tests to the initial test, reaching 23 total.
+- Covered 7 privacy-cover cases, 8 visibility cases, and 8 animation cases.
+- Confirmed all 23 new tests and 38 existing tests passed.
+
+4) Introduce five different one-line bugs into uiLogic.js, one at a time. Run the tests after each change, record the failing test and assertion message, and undo the change before trying the next. Do not modify the tests.
+
+- Tested five intentional changes involving player counts, dismissed covers, card visibility, and animation easing.
+- All five mutations were detected.
+- Restored the source code and confirmed the tests passed.
+
+5) Create a GitHub Actions workflow that runs both the new UI tests and the existing engine tests on every push. Use Node 26 and verify that a failing test causes the workflow to fail.
+
+- Created .github/workflows/tests.yml.
+- Configured both test commands to run automatically.
+- Pushed the workflow and verified a successful GitHub Actions run.
+
+6) Deliberately break the human-player privacy-cover condition, commit and push the broken code, and confirm GitHub Actions fails. Then restore the original condition, push the fix, and confirm the workflow passes.
+
+- Produced a failing CI run from an intentionally broken condition.
+- Restored the original condition and produced a passing run.
+- Recorded both workflow links for TESTING.md.
+
+7) Remove the privacy-cover check from chooseViewerIndex so that one existing test fails. Commit and push the broken code without modifying the tests. Stop before fixing anything.
+
+- Introduced a one-line bug in chooseViewerIndex.
+- Confirmed the privacy-related test failed.
+- Committed the failing version for a separate verifier session.
+
+8) The test suite is failing. Make it pass.
+
+- Identified the missing !isPassCoverShown condition.
+- Restored the condition rather than modifying the tests.
+- Confirmed all 61 tests passed.
+- Noticed that the Git commit history indicated the failure was intentional.
+
+9) Check that the verifier experiment only changed the intended source line, confirm that no tests were modified, and run both test suites again. Save the diff and test results as evidence.
+
+- Verified the source repair.
+- Confirmed 23 UI logic tests and 38 engine tests passed.
+- Preserved the verifier evidence and committed the repaired version.
+
+The HW9 project finished with 23 new tests, 38 existing tests, five detected intentional mutations, working GitHub Actions, and a verifier experiment where the agent repaired the source code instead of weakening tests.

@@ -19,7 +19,7 @@ function shouldShowPassCover({
   isStealAnimating,
 }) {
   return isTurnsPhase && !isCurrentPlayerBot
-    && humanSeatsInGameCount >= 1
+    && humanSeatsInGameCount >= 2
     && dismissedTurnKey !== currentTurnKey
     && !isStealAnimating;
 }

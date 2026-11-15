@@ -37,7 +37,7 @@ function chooseViewerIndex({
   isStealAnimating,
 }) {
   if (humanSeatsInGame.length === 1) return humanSeatsInGame[0];
-  if (isTurnsPhase && !isCurrentPlayerBot && !isStealAnimating) {
+  if (isTurnsPhase && !isCurrentPlayerBot && !isPassCoverShown && !isStealAnimating) {
     return currentPlayerIndex;
   }
   return -1;

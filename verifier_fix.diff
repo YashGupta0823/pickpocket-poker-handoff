@@ -1,0 +1,13 @@
+diff --git a/js/uiLogic.js b/js/uiLogic.js
+index 4ae52b6..b2d6aa7 100644
+--- a/js/uiLogic.js
++++ b/js/uiLogic.js
+@@ -37,7 +37,7 @@ function chooseViewerIndex({
+   isStealAnimating,
+ }) {
+   if (humanSeatsInGame.length === 1) return humanSeatsInGame[0];
+-  if (isTurnsPhase && !isCurrentPlayerBot && !isStealAnimating) {
++  if (isTurnsPhase && !isCurrentPlayerBot && !isPassCoverShown && !isStealAnimating) {
+     return currentPlayerIndex;
+   }
+   return -1;

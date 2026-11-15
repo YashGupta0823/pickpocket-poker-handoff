@@ -1,0 +1,33 @@
+✔ pass cover appears before a human turn in a multiplayer game (0.558625ms)
+✔ pass cover is hidden when fewer than two humans remain (0 and 1), shown at exactly 2 and above (0.515334ms)
+✔ pass cover is hidden on a bot turn even when several humans are in the game (0.062917ms)
+✔ pass cover is hidden outside the turns phase (e.g. deal or showdown) (0.04425ms)
+✔ pass cover stays down once dismissed for the same turn key (0.048167ms)
+✔ pass cover comes back when the turn key differs from the dismissed one (0.05275ms)
+✔ pass cover waits while a steal animation is playing (0.0385ms)
+✔ with exactly one human, that human always sees their cards — even on bot turns, outside play, or mid-steal (0.062125ms)
+✔ with two humans, the current human sees their own cards once the cover is dismissed (0.043959ms)
+✔ with two humans, nobody sees private cards while the pass cover is showing (0.082709ms)
+✔ with two humans, nobody sees private cards on a bot turn (0.042375ms)
+✔ with two humans, nobody sees private cards during a steal animation (0.032458ms)
+✔ with two humans, nobody sees private cards outside the turns phase (0.030167ms)
+✔ with no humans left, a bot turn reveals nobody (0.033792ms)
+✔ with no humans in the array, a non-bot turn returns currentPlayerIndex as-is (falls through to the multi-human branch) (0.0335ms)
+✔ steal card starts exactly at its origin at elapsed time 0 (0.451167ms)
+✔ steal card lands exactly on its destination at elapsed === duration (0.035833ms)
+✔ steal card stays clamped on its destination after the duration has passed (0.0295ms)
+✔ steal card is exactly at the midpoint halfway through (0.051416ms)
+✔ steal card eases in-out: 12.5% of the way at quarter time, 87.5% at three-quarter time (0.029792ms)
+✔ steal card interpolates X and Y independently, including movement up and to the left (0.024167ms)
+✔ steal card with negative elapsed time drifts slightly toward the target (progress is not clamped at 0) (0.023667ms)
+✔ steal card with zero duration: positive elapsed lands on target, but elapsed 0 yields NaN (0.038625ms)
+ℹ tests 23
+ℹ suites 0
+ℹ pass 23
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 58.394083
+
+38 passed, 0 failed

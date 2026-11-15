@@ -107,11 +107,19 @@ function getCurrentTurnKey() {
   return `${game.roundNumber}:${game.turnNumber}:${game.currentPlayerIndex}`;
 }
 
+// The decision itself is shouldShowPassCover() in uiLogic.js; this gathers its inputs.
 function isPassCoverNeeded() {
-  return Boolean(game) && game.phase === GAME_PHASE.TURNS && !game.getCurrentPlayer().isBot
-    && getHumanSeatsInGame().length >= 2
-    && passCoverDismissedTurnKey !== getCurrentTurnKey()
-    && !stealAnimation; // let everyone watch the steal first; the cover comes up right after
+  if (!game) return false;
+  // Outside the turns phase there is no current player (currentPlayerIndex is -1).
+  const currentPlayer = game.getCurrentPlayer();
+  return shouldShowPassCover({
+    isTurnsPhase: game.phase === GAME_PHASE.TURNS,
+    isCurrentPlayerBot: Boolean(currentPlayer && currentPlayer.isBot),
+    humanSeatsInGameCount: getHumanSeatsInGame().length,
+    currentTurnKey: getCurrentTurnKey(),
+    dismissedTurnKey: passCoverDismissedTurnKey,
+    isStealAnimating: Boolean(stealAnimation),
+  });
 }
 
 function onPassCoverContinueClicked() {
@@ -237,13 +245,12 @@ function renderTableFrame() {
   renderTable(canvasContext, game, view);
 
   const target = getCardSlotPosition(game, thiefIndex, cardIndex);
-  const progress = Math.min(1, (performance.now() - startTime) / STEAL_ANIMATION_MS);
-  const eased = progress < 0.5 ? 2 * progress * progress : 1 - (-2 * progress + 2) ** 2 / 2; // ease in-out
-  drawCardInFlight(
-    canvasContext, card,
-    fromX + (target.x - fromX) * eased,
-    fromY + (target.y - fromY) * eased,
-  );
+  const position = computeStealCardPosition({
+    fromX, fromY, toX: target.x, toY: target.y,
+    elapsedMs: performance.now() - startTime,
+    durationMs: STEAL_ANIMATION_MS,
+  });
+  drawCardInFlight(canvasContext, card, position.x, position.y);
 }
 
 // ---------- Drawing the UI from game state ----------
@@ -252,11 +259,17 @@ function renderTableFrame() {
 //  - exactly one human: always that human (bots don't look at the screen)
 //  - several humans: whoever's turn it is, if human, once they've dismissed the pass cover.
 //    Otherwise nobody (isHumanTurn() is false while the cover is up).
+// The decision itself is chooseViewerIndex() in uiLogic.js; this gathers its inputs.
 function getViewerIndex() {
-  const humanSeats = getHumanSeatsInGame();
-  if (humanSeats.length === 1) return humanSeats[0];
-  if (isHumanTurn()) return game.currentPlayerIndex;
-  return -1;
+  const currentPlayer = game.getCurrentPlayer();
+  return chooseViewerIndex({
+    humanSeatsInGame: getHumanSeatsInGame(),
+    currentPlayerIndex: game.currentPlayerIndex,
+    isTurnsPhase: game.phase === GAME_PHASE.TURNS,
+    isCurrentPlayerBot: Boolean(currentPlayer && currentPlayer.isBot),
+    isPassCoverShown: isPassCoverNeeded(),
+    isStealAnimating: Boolean(stealAnimation),
+  });
 }
 
 function refresh() {
